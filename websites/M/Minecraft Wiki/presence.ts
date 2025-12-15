@@ -1,19 +1,49 @@
 const presence = new Presence({
   clientId: '1232903356025143297',
 })
+
 const browsingTimestamp = Math.floor(Date.now() / 1000)
 let veactionLast: string | null = null
+
+function t(value: string | undefined, fallback: string): string {
+  return value && !value.includes(':') ? value : fallback
+}
 
 function hasPermissions(): boolean {
   return !document.querySelector('.permissions-errors')
 }
 
+const hostname = location.hostname
+
+const languageMap: Record<string, string> = {
+  'minecraft.wiki': 'English',
+  'de.minecraft.wiki': 'German',
+  'es.minecraft.wiki': 'Spanish',
+  'fr.minecraft.wiki': 'French',
+  'it.minecraft.wiki': 'Italian',
+  'ja.minecraft.wiki': 'JA',
+  'ko.minecraft.wiki': 'Korean',
+  'lzh.minecraft.wiki': 'Classic Chinese',
+  'nl.minecraft.wiki': 'Dutch',
+  'pt.minecraft.wiki': 'PT-BR',
+  'ru.minecraft.wiki': 'Russian',
+  'th.minecraft.wiki': 'Thai',
+  'uk.minecraft.wiki': 'UK',
+  'zh.minecraft.wiki': 'Chinese',
+}
+
+const languagePrefix = languageMap[hostname]
+  ? `Language: ${languageMap[hostname]} • `
+  : ''
+
 async function prepare(): Promise<PresenceData> {
   const presenceData: PresenceData = {
     startTimestamp: browsingTimestamp,
   }
+
   const { href, search } = document.location
   const searchParams = new URLSearchParams(search)
+
   const strings = await presence.getStrings({
     viewHome: 'general.viewHome',
     viewUser: 'general.viewUser',
@@ -37,6 +67,7 @@ async function prepare(): Promise<PresenceData> {
     btnViewThread: 'minecraft wiki.btnViewThread',
     viewWatchlist: 'minecraft wiki.viewWatchlist',
   })
+
   const {
     'mw.config.values.wgPageName': wgPageName,
     'mw.config.values.wgNamespaceNumber': wgNamespaceNumber,
@@ -45,15 +76,7 @@ async function prepare(): Promise<PresenceData> {
     'mw.config.values.wgRelevantPageName': wgRelevantPageName,
     'mw.config.values.wgRelevantUserName': wgRelevantUserName,
     'mw.config.values.wgIsMainPage': wgIsMainPage,
-  } = await presence.getPageVariable<{
-    'mw.config.values.wgPageName': string
-    'mw.config.values.wgNamespaceNumber': number
-    'mw.config.values.wgTitle': string
-    'mw.config.values.wgCanonicalSpecialPageName': string | false
-    'mw.config.values.wgRelevantPageName': string
-    'mw.config.values.wgRelevantUserName': string | null
-    'mw.config.values.wgIsMainPage': boolean | null
-  }>(
+  } = await presence.getPageVariable<any>(
     'mw.config.values.wgPageName',
     'mw.config.values.wgNamespaceNumber',
     'mw.config.values.wgTitle',
@@ -62,14 +85,15 @@ async function prepare(): Promise<PresenceData> {
     'mw.config.values.wgRelevantUserName',
     'mw.config.values.wgIsMainPage',
   )
-  const pageTitle = wgPageName.replace(/_/g, ' ')
 
+  const pageTitle = wgPageName.replace(/_/g, ' ')
   veactionLast = searchParams.get('veaction')
 
-  presenceData.largeImageKey = getComputedStyle(
-    document.querySelector<HTMLAnchorElement>('.mw-wiki-logo')!,
-  ).backgroundImage.match(/url\("(.+)"\)/)?.[1]
-  ?? 'https://cdn.rcd.gg/PreMiD/websites/M/Minecraft%20Wiki/assets/logo.png'
+  presenceData.largeImageKey =
+    getComputedStyle(
+      document.querySelector<HTMLAnchorElement>('.mw-wiki-logo')!,
+    ).backgroundImage.match(/url\("(.+)"\)/)?.[1]
+    ?? 'https://cdn.rcd.gg/PreMiD/websites/M/Minecraft%20Wiki/assets/logo.png'
 
   if (
     searchParams.get('action') === 'edit'
@@ -78,12 +102,12 @@ async function prepare(): Promise<PresenceData> {
     || searchParams.get('veaction') === 'editsource'
   ) {
     presenceData.details = hasPermissions()
-      ? strings.editing
-      : strings.viewSourceOf
+      ? `${languagePrefix}${t(strings.editing, 'Editing')}`
+      : `${languagePrefix}${t(strings.viewSourceOf, 'Viewing source of')}`
     presenceData.state = pageTitle
   }
   else if (searchParams.get('action') === 'history') {
-    presenceData.details = strings.viewHistory
+    presenceData.details = `${languagePrefix}${t(strings.viewHistory, 'Viewing history')}`
     presenceData.state = pageTitle
   }
   else if (
@@ -91,90 +115,89 @@ async function prepare(): Promise<PresenceData> {
     || searchParams.get('action') === 'unprotect'
   ) {
     presenceData.details = hasPermissions()
-      ? strings.changeProtection
-      : strings.viewProtection
+      ? `${languagePrefix}${t(strings.changeProtection, 'Changing protection settings of')}`
+      : `${languagePrefix}${t(strings.viewProtection, 'Viewing protection settings of')}`
     presenceData.state = pageTitle
   }
   else if (searchParams.get('search')) {
-    presenceData.details = strings.search
-    presenceData.state = searchParams.get('search')
+    presenceData.details = `${languagePrefix}${t(strings.search, 'Searching')}`
+    presenceData.state = searchParams.get('search') ?? undefined
   }
   else if (wgNamespaceNumber === 2) {
-    // User namespace
-    presenceData.details = strings.viewUser
+    presenceData.details = `${languagePrefix}${t(strings.viewUser, 'Viewing user')}`
     presenceData.state = wgTitle
-    presenceData.buttons = [{ label: strings.buttonViewProfile, url: href }]
+    presenceData.buttons = [
+      { label: t(strings.buttonViewProfile, 'View profile'), url: href },
+    ]
   }
   else if (wgNamespaceNumber % 2 === 1) {
-    // All talk namespaces
-    presenceData.details = strings.viewAThread
+    presenceData.details = `${languagePrefix}${t(strings.viewAThread, 'Viewing discussion')}`
     presenceData.state = wgNamespaceNumber === 1 ? wgTitle : pageTitle
-    presenceData.buttons = [{ label: strings.btnViewThread, url: href }]
+    presenceData.buttons = [
+      { label: t(strings.btnViewThread, 'View thread'), url: href },
+    ]
   }
   else if (wgNamespaceNumber === -1) {
-    // Special namespace
     switch (wgCanonicalSpecialPageName) {
       case 'Preferences':
-        // Preferences (Special:Preferences)
-        presenceData.details = strings.advancedSettings
+        presenceData.details = `${languagePrefix}${t(strings.advancedSettings, 'Configuring settings')}`
         break
       case 'Watchlist':
-        // Subscriptions (Special:Watchlist)
-        presenceData.details = strings.viewWatchlist
+        presenceData.details = `${languagePrefix}${t(strings.viewWatchlist, 'Viewing watchlist')}`
         break
       case 'Recentchanges':
-        // Recent changes (Special:RecentChanges)
-        presenceData.details = strings.viewRecentChanges
+        presenceData.details = `${languagePrefix}${t(strings.viewRecentChanges, 'Viewing recent changes')}`
         break
       case 'Recentchangeslinked':
-        // Related changes (Special:RecentChangesLinked)
-        presenceData.details = strings.viewRecentChanges
+        presenceData.details = `${languagePrefix}${t(strings.viewRecentChanges, 'Viewing related changes')}`
         presenceData.state = wgRelevantPageName.replace(/_/g, ' ')
         break
       case 'Movepage':
-        // Moving a page (Special:MovePage)
-        presenceData.details = strings.moving
+        presenceData.details = `${languagePrefix}${t(strings.moving, 'Moving page')}`
         presenceData.state = wgRelevantPageName.replace(/_/g, ' ')
         break
       case 'Userlogin':
       case 'CreateAccount':
-        // Logging in (Special:UserLogin, Special:CreateAccount)
-        presenceData.details = strings.login
+        presenceData.details = `${languagePrefix}${t(strings.login, 'Logging in')}`
         break
       case 'Upload':
-        // Upload a file (Special:Upload)
-        presenceData.details = strings.upload
-        presenceData.state = searchParams.get('wpDestFile')
+        presenceData.details = `${languagePrefix}${t(strings.upload, 'Uploading file')}`
+        presenceData.state = searchParams.get('wpDestFile') ?? undefined
         break
       case 'Contributions':
-        // Contributions (Special:Contributions)
-        presenceData.details = strings.viewContributionsOf
+        presenceData.details = `${languagePrefix}${t(strings.viewContributionsOf, 'Viewing contributions of')}`
         presenceData.state = wgRelevantUserName
         break
       default:
-        presenceData.details = strings.viewAPage
+        presenceData.details = `${languagePrefix}${t(strings.viewAPage, 'Viewing page')}`
         presenceData.state = pageTitle
     }
   }
   else if (wgNamespaceNumber) {
-    // Not main namespace
-    presenceData.details = `${strings.readingAbout} ${pageTitle.split(':')[0]}`
+    presenceData.details =
+      `${languagePrefix}${t(strings.readingAbout, 'Reading about')} ${pageTitle.split(':')[0]}`
     presenceData.state = wgTitle
-    presenceData.buttons = [{ label: strings.buttonViewPage, url: href }]
+    presenceData.buttons = [
+      { label: t(strings.buttonViewPage, 'View page'), url: href },
+    ]
   }
   else if (wgIsMainPage) {
-    presenceData.details = strings.viewHome
+    presenceData.details = `${languagePrefix}${t(strings.viewHome, 'Home page')}`
   }
   else {
-    presenceData.details = strings.viewAPage
+    presenceData.details = `${languagePrefix}${t(strings.viewAPage, 'Viewing page')}`
     presenceData.state = pageTitle
-    presenceData.buttons = [{ label: strings.buttonViewPage, url: href }]
+    presenceData.buttons = [
+      { label: t(strings.buttonViewPage, 'View page'), url: href },
+    ]
   }
+
   return presenceData
 }
 
-(async (): Promise<void> => {
+;(async (): Promise<void> => {
   let presenceData = await prepare()
+
   presence.on('UpdateData', async () => {
     if (
       veactionLast
