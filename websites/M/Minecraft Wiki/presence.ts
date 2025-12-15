@@ -143,7 +143,7 @@ async function prepare(): Promise<PresenceData> {
         presenceData.details = `${languagePrefix}${t(strings.advancedSettings, 'Configuring settings')}`
         break
       case 'Watchlist':
-        presenceData.details = `${languagePrefix}${t(strings.viewWatchlist, 'Viewing watchlist')}`
+        presenceData.details = `${languagePrefix}${t(strings.viewWatchlist, 'Viewing their watchlist')}`
         break
       case 'Recentchanges':
         presenceData.details = `${languagePrefix}${t(strings.viewRecentChanges, 'Viewing recent changes')}`
